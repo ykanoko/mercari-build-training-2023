@@ -43,7 +43,6 @@ def add_item(name: str = Form(...), category: str = Form(...)):
     try:
         with open(PATH_ITEMS, 'w', encoding=ENCODING) as f:
             json.dump(data, f)
-        pass
     except Exception as error:
         print(error)
     return {"message": f"item received: {name}"}
@@ -54,9 +53,9 @@ def get_items():
     try:
         with open(PATH_ITEMS, 'r', encoding=ENCODING) as f:
             data = json.load(f)
+        return data
     except FileNotFoundError:
-        print("File not found.")
-    return data
+        raise HTTPException(status_code=404, detail="File not found.")
 
 
 @app.get("/image/{image_filename}")
