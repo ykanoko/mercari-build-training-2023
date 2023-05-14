@@ -55,7 +55,7 @@ def get_items():
             data = json.load(f)
         return data
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="File not found.")
+        raise HTTPException(status_code=404, detail="items not found.")
 
 
 @app.get("/image/{image_filename}")
