@@ -35,8 +35,8 @@ async def add_item(name: str = Form(...), category: str = Form(...), image: Uplo
     logger.info(f"Receive item: {name}")
     #画像の保存
     content = image.file.read()
-    image_filename = hashlib.sha256(content).hexdigest() + '.jpg'
-    path_file = str(path_images) + '/' + image_filename
+    file_name = hashlib.sha256(content).hexdigest() + '.jpg'
+    path_file = str(path_images) + '/' + file_name
     with open(path_file, 'w+b') as f:
         f.write(content)
         # shutil.copyfileobj(image.file, f)
@@ -46,15 +46,11 @@ async def add_item(name: str = Form(...), category: str = Form(...), image: Uplo
         #ファイルが存在する場合
         with open(path_items, 'r', encoding=ENCODING) as f:
             data = json.load(f)
-            data['items'].append({
-                "name": name,
-                "category": category,
-                "image_filename": image_filename
-            })
+            data['items'].append({"name": name, "category": category, "image_filename": file_name})
     except FileNotFoundError:
         #ファイルが存在しない場合
         print("File not found.")
-        data = {"items": [{"name": name, "category": category, "image_filename": image_filename}]}
+        data = {"items": [{"name": name, "category": category, "image_filename": file_name}]}
     with open(path_items, 'w', encoding=ENCODING) as f:
         json.dump(data, f)
 
@@ -69,6 +65,18 @@ def get_items():
         return data
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="items not found.")
+
+
+@app.get("/items/{item_id}")
+def get_items(item_id):
+    try:
+        with open(path_items, 'r', encoding=ENCODING) as f:
+            data = json.load(f)['items'][int(item_id) - 1]
+        return data
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="item not found.")
+    except IndexError:
+        raise HTTPException(status_code=404, detail="item not found.")
 
 
 @app.get("/image/{image_filename}")
