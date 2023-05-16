@@ -81,6 +81,17 @@ def get_items(item_id):
         raise HTTPException(status_code=404, detail="item not found.")
 
 
+@app.get("/search")
+def search_items(keyword: str):
+    con = sqlite3.connect(path_db_items)
+    cur = con.cursor()
+    res = cur.execute("SELECT * FROM items WHERE name LIKE ?", ('%' + keyword + '%', ))
+    data = res.fetchall()
+    con.commit()
+    con.close()
+    return data
+
+
 @app.get("/image/{image_filename}")
 async def get_image(image_filename):
     # Create image path
