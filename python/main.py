@@ -3,7 +3,8 @@ import hashlib
 import json
 import logging
 import pathlib
-import shutil
+import sqlite3
+# import shutil
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ logger = logging.getLogger("uvicorn")
 logger.level = logging.INFO
 path_items = pathlib.Path(__file__).parent.resolve() / "data/items.json"
 path_images = pathlib.Path(__file__).parent.resolve() / "images"
+path_db_items = pathlib.Path(__file__).parent.resolve() / "../db/mercari.sqlite3"
 origins = [os.environ.get('FRONT_URL', 'http://localhost:3000')]
 app.add_middleware(
     CORSMiddleware,
@@ -21,6 +23,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+#ファイル（mercari.sqlite3）の作成
+# con = sqlite3.connect(path_db_items)
+# cur = con.cursor()
+# cur.execute(
+#     'CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, image_name TEXT)'
+# )
 
 ENCODING = "utf-8"
 
@@ -41,30 +49,24 @@ async def add_item(name: str = Form(...), category: str = Form(...), image: Uplo
         f.write(content)
         # shutil.copyfileobj(image.file, f)
 
-    #name, categoryの保存
-    try:
-        #ファイルが存在する場合
-        with open(path_items, 'r', encoding=ENCODING) as f:
-            data = json.load(f)
-            data['items'].append({"name": name, "category": category, "image_filename": file_name})
-    except FileNotFoundError:
-        #ファイルが存在しない場合
-        print("File not found.")
-        data = {"items": [{"name": name, "category": category, "image_filename": file_name}]}
-    with open(path_items, 'w', encoding=ENCODING) as f:
-        json.dump(data, f)
-
+    con = sqlite3.connect(path_db_items)
+    cur = con.cursor()
+    cur.execute('INSERT INTO items (name, category, image_name) VALUES (?, ?, ?)',
+                (name, category, file_name))
+    con.commit()
+    con.close()
     return {"message": f"item received: {name}"}
 
 
 @app.get("/items")
 def get_items():
-    try:
-        with open(path_items, 'r', encoding=ENCODING) as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="items not found.")
+    con = sqlite3.connect(path_db_items)
+    cur = con.cursor()
+    res = cur.execute("SELECT * FROM items")
+    data = res.fetchall()
+    con.commit()
+    con.close()
+    return data
 
 
 @app.get("/items/{item_id}")
