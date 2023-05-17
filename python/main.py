@@ -27,8 +27,10 @@ app.add_middleware(
 # con = sqlite3.connect(path_db_items)
 # cur = con.cursor()
 # cur.execute(
-#     'CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, image_name TEXT)'
+#     'CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category_id INTEGER, image_filename TEXT)'
 # )
+# cur.execute('CREATE TABLE category (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)')
+# con.close()
 
 ENCODING = "utf-8"
 
@@ -39,7 +41,7 @@ def root():
 
 
 @app.post("/items")
-async def add_item(name: str = Form(...), category: str = Form(...), image: UploadFile = File(...)):
+def add_item(name: str = Form(...), category: str = Form(...), image: UploadFile = File(...)):
     logger.info(f"Receive item: {name}")
     #画像の保存
     content = image.file.read()
@@ -51,8 +53,14 @@ async def add_item(name: str = Form(...), category: str = Form(...), image: Uplo
 
     con = sqlite3.connect(path_db_items)
     cur = con.cursor()
-    cur.execute('INSERT INTO items (name, category, image_name) VALUES (?, ?, ?)',
-                (name, category, file_name))
+    try:
+        res = cur.execute("SELECT id FROM category WHERE name = ? ", (category, ))
+        category_id = res.fetchone()[0]
+    except:
+        cur.execute('INSERT INTO category (name) VALUES (?)', (category, ))
+        category_id = cur.lastrowid
+    cur.execute('INSERT INTO items (name, category_id, image_filename) VALUES (?, ?, ?)',
+                (name, category_id, file_name))
     con.commit()
     con.close()
     return {"message": f"item received: {name}"}
@@ -62,7 +70,14 @@ async def add_item(name: str = Form(...), category: str = Form(...), image: Uplo
 def get_items():
     con = sqlite3.connect(path_db_items)
     cur = con.cursor()
-    res = cur.execute("SELECT * FROM items")
+    #確認用
+    # res = cur.execute("SELECT * FROM items")
+    # print('items', res.fetchall())
+    # res = cur.execute("SELECT * FROM category")
+    # print('category', res.fetchall())
+    res = cur.execute(
+        "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id"
+    )
     data = res.fetchall()
     con.commit()
     con.close()
@@ -71,22 +86,29 @@ def get_items():
 
 @app.get("/items/{item_id}")
 def get_items(item_id):
-    try:
-        with open(path_items, 'r', encoding=ENCODING) as f:
-            data = json.load(f)['items'][int(item_id) - 1]
-        return data
-    except FileNotFoundError:
+    con = sqlite3.connect(path_db_items)
+    cur = con.cursor()
+    res = cur.execute(
+        "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.id = ?",
+        (item_id, ))
+    data = res.fetchall()
+    if data == []:
         raise HTTPException(status_code=404, detail="item not found.")
-    except IndexError:
-        raise HTTPException(status_code=404, detail="item not found.")
+    con.commit()
+    con.close()
+    return data
 
 
 @app.get("/search")
 def search_items(keyword: str):
     con = sqlite3.connect(path_db_items)
     cur = con.cursor()
-    res = cur.execute("SELECT * FROM items WHERE name LIKE ?", ('%' + keyword + '%', ))
+    res = cur.execute(
+        "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.name LIKE ?",
+        ('%' + keyword + '%', ))
     data = res.fetchall()
+    if data == []:
+        raise HTTPException(status_code=404, detail="item not found.")
     con.commit()
     con.close()
     return data
