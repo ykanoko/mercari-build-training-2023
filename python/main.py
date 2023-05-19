@@ -53,6 +53,7 @@ def add_item(name: str = Form(...), category: str = Form(...), image: UploadFile
 
     con = sqlite3.connect(path_db_items)
     cur = con.cursor()
+
     try:
         res = cur.execute("SELECT id FROM category WHERE name = ? ", (category, ))
         category_id = res.fetchone()[0]
@@ -69,16 +70,18 @@ def add_item(name: str = Form(...), category: str = Form(...), image: UploadFile
 @app.get("/items")
 def get_items():
     con = sqlite3.connect(path_db_items)
+    con.row_factory = sqlite3.Row
     cur = con.cursor()
-    #確認用
+    # #確認用
     # res = cur.execute("SELECT * FROM items")
     # print('items', res.fetchall())
     # res = cur.execute("SELECT * FROM category")
-    # print('category', res.fetchall())
+    # print('category', dict(res.fetchall()))
     res = cur.execute(
         "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id"
     )
     data = res.fetchall()
+    data = {"items": data}
     con.commit()
     con.close()
     return data
@@ -87,11 +90,12 @@ def get_items():
 @app.get("/items/{item_id}")
 def get_items(item_id):
     con = sqlite3.connect(path_db_items)
+    con.row_factory = sqlite3.Row
     cur = con.cursor()
     res = cur.execute(
         "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.id = ?",
         (item_id, ))
-    data = res.fetchall()
+    data = res.fetchone()
     if data == []:
         raise HTTPException(status_code=404, detail="item not found.")
     con.commit()
@@ -102,6 +106,7 @@ def get_items(item_id):
 @app.get("/search")
 def search_items(keyword: str):
     con = sqlite3.connect(path_db_items)
+    con.row_factory = sqlite3.Row
     cur = con.cursor()
     res = cur.execute(
         "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.name LIKE ?",
@@ -109,6 +114,7 @@ def search_items(keyword: str):
     data = res.fetchall()
     if data == []:
         raise HTTPException(status_code=404, detail="item not found.")
+    data = {"items": data}
     con.commit()
     con.close()
     return data
