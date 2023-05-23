@@ -40,3 +40,14 @@ The following icons indicate pointers for
 ### Other documents
 
 - 効率的に開発できるようになるためのTips / Tips for efficient development ([JA](document/tips.ja.md)/[EN](document/tips.en.md))
+
+# commands
+```shell
+cd python
+uvicorn main:app --reload --port 9000
+curl -X GET 'http://127.0.0.1:9000/items'
+curl -X GET 'http://127.0.0.1:9000/items/1'
+curl -X GET 'http://127.0.0.1:9000/search?keyword=jacket'
+curl -X POST --url 'http://localhost:9000/items' -F 'name=jacket' -F 'category=fashion' -F 'image=@images/default.jpg'
+{"items": [{"name": "jacket", "category": "fashion", "image_filename": "510824dfd4caed183a7a7cc2be80f24a5f5048e15b3b5338556d5bbd3f7bc267.jpg"}, ...]}
+```
