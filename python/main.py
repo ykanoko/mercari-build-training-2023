@@ -67,18 +67,26 @@ def add_item(name: str = Form(...), category: str = Form(...), image: UploadFile
     return {"message": f"item received: {name}"}
 
 
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
 @app.get("/items")
 def get_items():
     con = sqlite3.connect(path_db_items)
-    con.row_factory = sqlite3.Row
+    con.row_factory = dict_factory
+    # con.row_factory = sqlite3.Row
     cur = con.cursor()
-    # #確認用
-    # res = cur.execute("SELECT * FROM items")
-    # print('items', res.fetchall())
-    # res = cur.execute("SELECT * FROM category")
-    # print('category', dict(res.fetchall()))
+    #確認用
+    res = cur.execute("SELECT * FROM items")
+    print('items', res.fetchall())
+    res = cur.execute("SELECT * FROM category")
+    print('category', res.fetchall())
     res = cur.execute(
-        "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id"
+        "SELECT items.id, items.name, category.name AS category, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id"
     )
     data = res.fetchall()
     data = {"items": data}
@@ -90,10 +98,10 @@ def get_items():
 @app.get("/items/{item_id}")
 def get_items(item_id):
     con = sqlite3.connect(path_db_items)
-    con.row_factory = sqlite3.Row
+    con.row_factory = dict_factory
     cur = con.cursor()
     res = cur.execute(
-        "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.id = ?",
+        "SELECT items.id, items.name, category.name AS category, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.id = ?",
         (item_id, ))
     data = res.fetchone()
     if data == []:
@@ -106,10 +114,10 @@ def get_items(item_id):
 @app.get("/search")
 def search_items(keyword: str):
     con = sqlite3.connect(path_db_items)
-    con.row_factory = sqlite3.Row
+    con.row_factory = dict_factory
     cur = con.cursor()
     res = cur.execute(
-        "SELECT items.id, items.name, category.name, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.name LIKE ?",
+        "SELECT items.id, items.name, category.name AS category, items.image_filename FROM items INNER JOIN category ON items.category_id = category.id WHERE items.name LIKE ?",
         ('%' + keyword + '%', ))
     data = res.fetchall()
     if data == []:
